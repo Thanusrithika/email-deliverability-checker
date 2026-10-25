@@ -7,7 +7,7 @@ import os
 import re
 import socket
 from typing import List, Set
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 
 from verifier import verify_email, verify_emails_batch, is_port_25_accessible
 
@@ -184,6 +184,38 @@ def verify_single():
         "success": True,
         "result": result
     })
+
+
+@app.route("/download-pdf", methods=["GET"])
+@app.route("/download/pdf", methods=["GET"])
+@app.route("/DeliverCheck_Project_Overview.pdf", methods=["GET"])
+def download_pdf():
+    """Endpoint to download the project overview PDF."""
+    pdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DeliverCheck_Project_Overview.pdf")
+    if os.path.exists(pdf_path):
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name="DeliverCheck_Project_Overview.pdf",
+            mimetype="application/pdf"
+        )
+    return jsonify({"error": "PDF file not found"}), 404
+
+
+@app.route("/download-docx", methods=["GET"])
+@app.route("/download/docx", methods=["GET"])
+@app.route("/DeliverCheck_Project_Overview.docx", methods=["GET"])
+def download_docx():
+    """Endpoint to download the project overview DOCX."""
+    docx_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DeliverCheck_Project_Overview.docx")
+    if os.path.exists(docx_path):
+        return send_file(
+            docx_path,
+            as_attachment=True,
+            download_name="DeliverCheck_Project_Overview.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    return jsonify({"error": "DOCX file not found"}), 404
 
 
 if __name__ == "__main__":
