@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeliverCheck &bull; Email Deliverability & Bounce Verifier</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .badge-glow-delivered {
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+    }
+    .badge-glow-bounce {
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    }
+    .badge-glow-unknown {
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header / Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <span class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            Deliver<span class="text-emerald-400">Check</span>
+            <span class="text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">v1.0</span>
+          </span>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <!-- Live Server Diagnostics Pill -->
+        <div id="server-status-pill" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300">
+          <span class="relative flex h-2 w-2">
+            <span id="status-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span id="status-text">Checking server...</span>
+        </div>
+
+        <a href="#how-it-works" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition">How it Works</a>
+        <a href="#api-docs" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition">API</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Hero & Tool Area -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-10">
+
+    <!-- Hero Title -->
+    <div class="text-center max-w-3xl mx-auto space-y-3">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+        Email Deliverability & <span class="bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">Bounce Predictor</span>
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+        Verify whether email addresses are <strong class="text-emerald-400">likely to be delivered</strong>, <strong class="text-rose-400">likely to bounce</strong>, or <strong class="text-amber-400">unknown</strong> using multi-stage RFC-compliant syntax, DNS/MX validation, and non-intrusive SMTP probing.
+      </p>
+    </div>
+
+    <!-- Input Card -->
+    <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 sm:p-7 shadow-xl shadow-black/40 backdrop-blur space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <label for="emails-input" class="text-sm font-semibold text-slate-200">
+            Paste Email Addresses
+          </label>
+          <span class="text-xs text-slate-400">(one per line, comma, space, or CSV)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-sample" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Load Sample List
+          </button>
+          <button id="btn-clear" type="button" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <div class="relative">
+        <textarea
+          id="emails-input"
+          rows="6"
+          placeholder="e.g.&#10;user@example.com&#10;support@github.com&#10;invalid..address@nonexistent999888.com"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-sm font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition resize-y"
+        ></textarea>
+        <div class="absolute bottom-3 right-3 text-xs text-slate-500" id="detected-count">
+          0 addresses detected
+        </div>
+      </div>
+
+      <!-- Action Row -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-700/60">
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+          <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <span><strong>Safe Verification:</strong> Probes stop at <code class="text-slate-300">RCPT TO</code>. No emails are ever sent.</span>
+        </div>
+
+        <button
+          id="btn-verify"
+          type="button"
+          class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span id="btn-verify-icon">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </span>
+          <span id="btn-verify-text">Verify Email List</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-indicator" class="hidden text-center py-10 space-y-4">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 animate-spin">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+      <div class="space-y-1">
+        <h3 class="text-lg font-bold text-white">Analyzing Email Addresses</h3>
+        <p class="text-sm text-slate-400">Validating syntax, querying DNS MX records, and testing SMTP handshakes...</p>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-container" class="hidden space-y-6">
+
+      <!-- Summary Metric Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total -->
+        <div onclick="filterResults('all')" class="cursor-pointer bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 hover:border-slate-500 transition shadow-lg">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Checked</div>
+          <div class="text-3xl font-extrabold text-white mt-2" id="metric-total">0</div>
+          <div class="text-xs text-slate-500 mt-1">Unique addresses analyzed</div>
+        </div>
+
+        <!-- Likely to be delivered -->
+        <div onclick="filterResults('likely_to_be_delivered')" class="cursor-pointer bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-5 hover:border-emerald-500 transition shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Likely Delivered</span>
+            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <div class="text-3xl font-extrabold text-emerald-400 mt-2" id="metric-delivered">0</div>
+          <div class="text-xs text-emerald-500/80 mt-1">Confirmed deliverable mailbox</div>
+        </div>
+
+        <!-- Likely to bounce -->
+        <div onclick="filterResults('likely_to_bounce')" class="cursor-pointer bg-rose-950/30 border border-rose-800/50 rounded-2xl p-5 hover:border-rose-500 transition shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-rose-400 uppercase tracking-wider">Likely Bounce</span>
+            <span class="h-2 w-2 rounded-full bg-rose-500"></span>
+          </div>
+          <div class="text-3xl font-extrabold text-rose-400 mt-2" id="metric-bounce">0</div>
+          <div class="text-xs text-rose-500/80 mt-1">Invalid syntax, domain, or mailbox</div>
+        </div>
+
+        <!-- Unknown -->
+        <div onclick="filterResults('unknown')" class="cursor-pointer bg-amber-950/30 border border-amber-800/50 rounded-2xl p-5 hover:border-amber-500 transition shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Unknown</span>
+            <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+          </div>
+          <div class="text-3xl font-extrabold text-amber-400 mt-2" id="metric-unknown">0</div>
+          <div class="text-xs text-amber-500/80 mt-1">Catch-All, deferred, or blocked port</div>
+        </div>
+      </div>
+
+      <!-- Controls & Table Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <!-- Filter Tabs -->
+        <div class="flex items-center gap-1.5 p-1 bg-slate-800 border border-slate-700 rounded-xl overflow-x-auto">
+          <button onclick="filterResults('all')" id="tab-all" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition">
+            All (<span id="count-all">0</span>)
+          </button>
+          <button onclick="filterResults('likely_to_be_delivered')" id="tab-likely_to_be_delivered" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+            Deliverable (<span id="count-delivered">0</span>)
+          </button>
+          <button onclick="filterResults('likely_to_bounce')" id="tab-likely_to_bounce" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+            Bounce (<span id="count-bounce">0</span>)
+          </button>
+          <button onclick="filterResults('unknown')" id="tab-unknown" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition">
+            Unknown (<span id="count-unknown">0</span>)
+          </button>
+        </div>
+
+        <!-- Search & Export -->
+        <div class="flex items-center gap-2">
+          <div class="relative">
+            <input
+              id="search-filter"
+              type="text"
+              placeholder="Search address or domain..."
+              class="w-48 sm:w-64 bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          <button id="btn-export-csv" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            CSV
+          </button>
+          <button id="btn-export-json" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition">
+            JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- Results List Table -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl overflow-hidden shadow-xl">
+        <div class="divide-y divide-slate-700/60" id="results-list">
+          <!-- Dynamically populated rows -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Explanatory / Educational Section -->
+    <div id="how-it-works" class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+          ?
+        </div>
+        <h2 class="text-xl font-bold text-white">How Email Verification Works</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Stage 1 -->
+        <div class="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="flex items-center gap-2 text-emerald-400 text-sm font-bold">
+            <span>1.</span> Syntax & RFC 5322
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Checks string structure, consecutive dots, length constraints (RFC 5321: &le; 254 chars total, &le; 64 chars local part), and valid top-level domain.
+          </p>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="flex items-center gap-2 text-indigo-400 text-sm font-bold">
+            <span>2.</span> DNS MX & Fallback
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Queries DNS for Mail Exchanger (MX) records, detects RFC 7505 Null MX records (explicit email rejection), and validates domain resolution via A-record fallback.
+          </p>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="space-y-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="flex items-center gap-2 text-amber-400 text-sm font-bold">
+            <span>3.</span> SMTP Mailbox Handshake
+          </div>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Performs an RFC-compliant SMTP handshake (<code class="text-slate-300">EHLO</code>, <code class="text-slate-300">MAIL FROM</code>, <code class="text-slate-300">RCPT TO</code>). <strong>Never transmits email body or DATA</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Notice on Unknown & Port 25 -->
+      <div class="p-5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 space-y-3">
+        <div class="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Why is "Unknown" a Valid and Frequent Result?
+        </div>
+        <div class="text-xs text-slate-300 space-y-2 leading-relaxed">
+          <p>
+            <strong>1. Catch-All Mail Servers:</strong> Many corporate and enterprise mail servers (e.g. Outlook 365, Google Workspace, custom domains) are configured to return <code class="text-amber-300">250 OK</code> for <em>all</em> recipient addresses to prevent username harvesting. Because any arbitrary address returns OK, mailbox existence cannot be confirmed, resulting in an accurate <strong>Unknown</strong> classification.
+          </p>
+          <p>
+            <strong>2. Cloud Hosting Provider Restrictions (Port 25):</strong> Cloud hosts (Render, Railway, PythonAnywhere, AWS, DigitalOcean) intentionally block outbound TCP port 25 to prevent spam bots. When deployed in such an environment, the application validates syntax, domain existence, and MX records, but safely falls back to reporting unverified mailboxes as <strong>Unknown</strong> with detailed explanations.
+          </p>
+          <p>
+            <strong>3. Greylisting & Anti-Spam:</strong> Many destination servers intentionally reply with temporary 4xx codes (<code class="text-amber-300">450 / 451 / 421</code>) to unknown senders to verify retry behavior.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Reference Section -->
+    <div id="api-docs" class="bg-slate-800/50 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <span>REST API Documentation</span>
+        </h2>
+        <span class="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-1 rounded-lg font-mono">POST /api/verify</span>
+      </div>
+      <p class="text-xs text-slate-400">
+        Integrate deliverability checks into your applications with our JSON API:
+      </p>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 font-mono text-xs overflow-x-auto text-slate-300">
+        <span class="text-slate-500"># Check a list of emails with curl</span><br>
+        <span class="text-emerald-400">curl</span> -X POST http://localhost:5000/api/verify \<br>
+        &nbsp;&nbsp;-H <span class="text-amber-300">"Content-Type: application/json"</span> \<br>
+        &nbsp;&nbsp;-d <span class="text-amber-300">'{"emails": ["user@example.com", "fake@doesnotexist99.org"]}'</span>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 mt-16 py-8 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>DeliverCheck &bull; RFC-compliant Email Deliverability Analyzer</div>
+      <div class="flex items-center gap-4">
+        <span>No emails sent &bull; Read-only SMTP handshake</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Client-side Logic -->
+  <script>
+    let currentResults = [];
+    let currentFilter = 'all';
+
+    // Elements
+    const textarea = document.getElementById('emails-input');
+    const detectedCount = document.getElementById('detected-count');
+    const btnVerify = document.getElementById('btn-verify');
+    const btnVerifyText = document.getElementById('btn-verify-text');
+    const btnSample = document.getElementById('btn-sample');
+    const btnClear = document.getElementById('btn-clear');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsList = document.getElementById('results-list');
+    const searchFilter = document.getElementById('search-filter');
+
+    // Update detected count on input
+    textarea.addEventListener('input', () => {
+      const tokens = parseInputTokens(textarea.value);
+      detectedCount.textContent = `${tokens.length} address${tokens.length === 1 ? '' : 'es'} detected`;
+    });
+
+    function parseInputTokens(raw) {
+      if (!raw) return [];
+      const normalized = raw.replace(/[,;\t]+/g, '\n');
+      const lines = normalized.split('\n');
+      const tokens = [];
+      const seen = new Set();
+      for (const line of lines) {
+        for (let t of line.trim().split(/\s+/)) {
+          t = t.trim().replace(/^[<(\["']+|[>)\]"']+$/g, '');
+          if (t && !seen.has(t)) {
+            seen.add(t);
+            tokens.push(t);
+          }
+        }
+      }
+      return tokens;
+    }
+
+    // Load samples
+    btnSample.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/samples');
+        const data = await res.json();
+        textarea.value = data.raw_text;
+        textarea.dispatchEvent(new Event('input'));
+      } catch (err) {
+        textarea.value = [
+          'thanusrithika@gmail.com',
+          'contact@cloudflare.com',
+          'user..double-dot@example.com',
+          'missing-at-sign.com',
+          'john.doe@thisdomainabsolutelydoesnotexist999888.org',
+          'fake_nonexistent_user_998811@gmail.com',
+          'support@github.com',
+          'test_user_temporary@mailinator.com'
+        ].join('\n');
+        textarea.dispatchEvent(new Event('input'));
+      }
+    });
+
+    // Clear input
+    btnClear.addEventListener('click', () => {
+      textarea.value = '';
+      textarea.dispatchEvent(new Event('input'));
+      resultsContainer.classList.add('hidden');
+      currentResults = [];
+    });
+
+    // Check server status & port 25 diagnostic on load
+    async function checkServerStatus() {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        const pill = document.getElementById('server-status-pill');
+        const dot = document.getElementById('status-dot');
+        const pulse = document.getElementById('status-pulse');
+        const text = document.getElementById('status-text');
+
+        if (data.status === 'healthy') {
+          pill.classList.remove('hidden');
+          if (data.diagnostics && data.diagnostics.outbound_port_25_accessible) {
+            text.textContent = 'Direct SMTP Probe: Active';
+            dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-emerald-500';
+            pulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+          } else {
+            text.textContent = 'Port 25 Guard: Fallback Mode';
+            dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-amber-500';
+            pulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75';
+          }
+        }
+      } catch (err) {
+        console.warn('Health check failed', err);
+      }
+    }
+    checkServerStatus();
+
+    // Verify Emails Click Handler
+    btnVerify.addEventListener('click', async () => {
+      const emails = parseInputTokens(textarea.value);
+      if (emails.length === 0) {
+        alert('Please enter or paste at least one email address to verify.');
+        return;
+      }
+
+      // UI state
+      btnVerify.disabled = true;
+      btnVerifyText.textContent = 'Verifying...';
+      loadingIndicator.classList.remove('hidden');
+      resultsContainer.classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emails })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          currentResults = data.results;
+          renderSummary(data.summary);
+          renderResultsList(currentResults);
+          resultsContainer.classList.remove('hidden');
+        } else {
+          alert('Verification error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network or server error while verifying emails: ' + err.message);
+      } finally {
+        btnVerify.disabled = false;
+        btnVerifyText.textContent = 'Verify Email List';
+        loadingIndicator.classList.add('hidden');
+      }
+    });
+
+    function renderSummary(summary) {
+      document.getElementById('metric-total').textContent = summary.total;
+      document.getElementById('metric-delivered').textContent = summary.likely_to_be_delivered;
+      document.getElementById('metric-bounce').textContent = summary.likely_to_bounce;
+      document.getElementById('metric-unknown').textContent = summary.unknown;
+
+      document.getElementById('count-all').textContent = summary.total;
+      document.getElementById('count-delivered').textContent = summary.likely_to_be_delivered;
+      document.getElementById('count-bounce').textContent = summary.likely_to_bounce;
+      document.getElementById('count-unknown').textContent = summary.unknown;
+    }
+
+    function filterResults(category) {
+      currentFilter = category;
+      const tabs = ['all', 'likely_to_be_delivered', 'likely_to_bounce', 'unknown'];
+      tabs.forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (t === category) {
+          el.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition';
+        } else {
+          el.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition';
+        }
+      });
+      applyFilters();
+    }
+
+    searchFilter.addEventListener('input', applyFilters);
+
+    function applyFilters() {
+      const query = (searchFilter.value || '').toLowerCase().trim();
+      const filtered = currentResults.filter(item => {
+        const matchesCategory = currentFilter === 'all' || item.category === currentFilter;
+        const matchesSearch = !query || item.email.toLowerCase().includes(query) || (item.domain && item.domain.toLowerCase().includes(query)) || item.reason.toLowerCase().includes(query);
+        return matchesCategory && matchesSearch;
+      });
+      renderResultsList(filtered);
+    }
+
+    function renderResultsList(items) {
+      resultsList.innerHTML = '';
+      if (items.length === 0) {
+        resultsList.innerHTML = `
+          <div class="p-8 text-center text-slate-400 text-sm">
+            No matching email results found.
+          </div>
+        `;
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const isDelivered = item.category === 'likely_to_be_delivered';
+        const isBounce = item.category === 'likely_to_bounce';
+        const isUnknown = item.category === 'unknown';
+
+        let badgeClass = '';
+        let badgeIcon = '';
+        let categoryLabel = item.category_label || 'Unknown';
+
+        if (isDelivered) {
+          badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 badge-glow-delivered';
+          badgeIcon = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>`;
+        } else if (isBounce) {
+          badgeClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/30 badge-glow-bounce';
+          badgeIcon = `<svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>`;
+        } else {
+          badgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/30 badge-glow-unknown';
+          badgeIcon = `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'p-4 sm:p-5 hover:bg-slate-750 transition space-y-3';
+
+        const rowId = `details-${index}`;
+
+        row.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start sm:items-center gap-3 min-w-0">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${badgeClass}">
+                ${badgeIcon}
+                ${categoryLabel}
+              </span>
+              <span class="font-mono text-sm font-semibold text-white truncate max-w-xs sm:max-w-md" title="${item.email}">
+                ${item.email}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button onclick="toggleDetails('${rowId}')" class="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1 transition">
+                <span>Diagnostics</span>
+                <svg id="chevron-${rowId}" class="w-3.5 h-3.5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Concise Reason -->
+          <div class="text-xs text-slate-300 pl-1 flex items-start gap-1.5">
+            <span class="text-slate-500 font-semibold">Diagnosis:</span>
+            <span>${item.reason}</span>
+          </div>
+
+          <!-- Expandable Technical Details -->
+          <div id="${rowId}" class="hidden pt-3 border-t border-slate-700/60 mt-2 text-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-slate-900/40 p-3.5 rounded-xl border border-slate-700/40">
+            <div>
+              <span class="text-slate-500 font-medium block">Syntax RFC 5322:</span>
+              <span class="font-mono ${item.syntax_valid ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
+                ${item.syntax_valid ? '&check; Valid RFC syntax' : '&cross; Invalid format'}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-500 font-medium block">Domain / Host:</span>
+              <span class="font-mono text-slate-200">${item.domain || '(none)'}</span>
+            </div>
+            <div>
+              <span class="text-slate-500 font-medium block">MX Mail Servers:</span>
+              <span class="font-mono text-slate-200">
+                ${item.mx_records && item.mx_records.length > 0 ? item.mx_records.join(', ') : '<span class="text-rose-400">None found</span>'}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-500 font-medium block">Disposable Domain:</span>
+              <span class="font-mono ${item.is_disposable ? 'text-amber-400 font-semibold' : 'text-slate-300'}">
+                ${item.is_disposable ? '&excl; Yes (Temporary mailbox)' : 'No'}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-500 font-medium block">Role-based Account:</span>
+              <span class="font-mono ${item.is_role_account ? 'text-indigo-400 font-semibold' : 'text-slate-300'}">
+                ${item.is_role_account ? 'Yes (admin/support/info)' : 'No (Personal mailbox)'}
+              </span>
+            </div>
+            <div>
+              <span class="text-slate-500 font-medium block">Catch-All Server:</span>
+              <span class="font-mono ${item.is_catch_all ? 'text-amber-400 font-semibold' : 'text-slate-300'}">
+                ${item.is_catch_all === true ? '&excl; Yes (Accepts all)' : (item.is_catch_all === false ? 'No (Validates recipients)' : 'N/A')}
+              </span>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+              <span class="text-slate-500 font-medium block">SMTP Mailbox Handshake:</span>
+              <span class="font-mono text-slate-300">
+                ${item.smtp_checked ? `Completed &bull; Code: ${item.details && item.details.smtp_code ? item.details.smtp_code : '250'} (${item.details && item.details.smtp_response ? item.details.smtp_response.substring(0, 80) : 'OK'})` : (item.details && item.details.error ? `<span class="text-amber-400">${item.details.error}</span>` : 'Skipped / Unreached')}
+              </span>
+            </div>
+          </div>
+        `;
+        resultsList.appendChild(row);
+      });
+    }
+
+    function toggleDetails(id) {
+      const el = document.getElementById(id);
+      const chevron = document.getElementById(`chevron-${id}`);
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+      } else {
+        el.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+      }
+    }
+
+    // Export CSV
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      if (currentResults.length === 0) return;
+      const headers = ['Email', 'Category', 'Reason', 'Syntax Valid', 'Domain', 'MX Records', 'Disposable', 'Catch All', 'SMTP Checked'];
+      const rows = currentResults.map(r => [
+        `"${r.email}"`,
+        `"${r.category_label}"`,
+        `"${(r.reason || '').replace(/"/g, '""')}"`,
+        r.syntax_valid ? 'TRUE' : 'FALSE',
+        `"${r.domain || ''}"`,
+        `"${(r.mx_records || []).join(';')}"`,
+        r.is_disposable ? 'TRUE' : 'FALSE',
+        r.is_catch_all ? 'TRUE' : 'FALSE',
+        r.smtp_checked ? 'TRUE' : 'FALSE'
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `delivercheck_results_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // Export JSON
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      if (currentResults.length === 0) return;
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(currentResults, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `delivercheck_results_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    });
+  </script>
+</body>
+</html>
